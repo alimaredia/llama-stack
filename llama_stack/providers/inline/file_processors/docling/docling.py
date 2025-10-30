@@ -4,7 +4,9 @@
 # This source code is licensed under the terms described in the LICENSE file in
 # the root directory of this source tree.
 
-import io
+import os
+import tempfile
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import File, UploadFile
@@ -64,13 +66,28 @@ class DoclingFileProcessorImpl(FileProcessors):
         if not self.converter:
             raise RuntimeError("Docling converter not initialized")
 
-        try:
-            # Create a file-like object from bytes
-            doc_stream = io.BytesIO(doc_bytes)
+        # Create a temporary file to write the bytes
+        # Docling requires a file path, not a file-like object
+        temp_fd = None
+        temp_path = None
 
-            # Convert document to markdown
+        try:
+            # Get file extension from filename
+            _, ext = os.path.splitext(filename)
+            if not ext:
+                ext = ".pdf"  # Default to PDF if no extension
+
+            # Create a temporary file with the correct extension
+            temp_fd, temp_path = tempfile.mkstemp(suffix=ext)
+
+            # Write bytes to temporary file
+            with os.fdopen(temp_fd, 'wb') as f:
+                f.write(doc_bytes)
+                temp_fd = None  # Mark as closed
+
+            # Convert document to markdown using the file path
             # Docling supports PDF, DOCX, PPTX, HTML, images, and more
-            result = self.converter.convert(doc_stream, filename=filename)
+            result = self.converter.convert(Path(temp_path))
 
             # Export to markdown
             markdown_content = result.document.export_to_markdown()
@@ -79,6 +96,19 @@ class DoclingFileProcessorImpl(FileProcessors):
         except Exception as e:
             logger.error(f"Error extracting text from document: {e}")
             raise ValueError(f"Failed to process document: {str(e)}")
+        finally:
+            # Clean up: close file descriptor if still open and remove temp file
+            if temp_fd is not None:
+                try:
+                    os.close(temp_fd)
+                except OSError:
+                    pass
+
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except OSError as e:
+                    logger.warning(f"Failed to remove temporary file {temp_path}: {e}")
 
     async def process_file(self, file_id: str) -> ProcessFileResponse:
         """
