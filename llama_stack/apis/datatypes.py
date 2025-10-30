@@ -102,6 +102,7 @@ class Api(Enum, metaclass=DynamicApiMeta):
     :cvar tool_groups: Tool group organization
     :cvar files: File storage and management
     :cvar prompts: Prompt versions and management
+    :cvar file_processors: File processing and conversion to markdown
     :cvar inspect: Built-in system inspection and introspection
     """
 
@@ -129,6 +130,7 @@ class Api(Enum, metaclass=DynamicApiMeta):
     files = "files"
     prompts = "prompts"
     conversations = "conversations"
+    file_processors = "file_processors"
 
     # built-in API
     inspect = "inspect"
