@@ -37,9 +37,9 @@ const createItems = [
 
 const manageItems = [
   {
-    title: "Chat Completions",
-    url: "/logs/chat-completions",
-    icon: MessageSquareText,
+    title: "Files",
+    url: "/files",
+    icon: FileText,
   },
   {
     title: "Vector Stores",
@@ -47,9 +47,9 @@ const manageItems = [
     icon: Database,
   },
   {
-    title: "Files",
-    url: "/logs/files",
-    icon: FileText,
+    title: "Chat Completions",
+    url: "/logs/chat-completions",
+    icon: MessageSquareText,
   },
   {
     title: "Responses",

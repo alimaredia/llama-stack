@@ -7,6 +7,7 @@ import type {
 } from "llama-stack-client/resources/vector-stores/vector-stores";
 import { useRouter } from "next/navigation";
 import { usePagination } from "@/hooks/use-pagination";
+import { useBackendStatus } from "@/hooks/use-backend-status";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -17,9 +18,50 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BackendStatus } from "@/components/ui/backend-status";
+
+// Mock data for when backend is not running
+const mockVectorStores: VectorStore[] = [
+  {
+    id: "vs_1234567890",
+    name: "Document Store",
+    created_at: Math.floor(Date.now() / 1000) - 86400,
+    file_counts: {
+      completed: 15,
+      cancelled: 0,
+      failed: 1,
+      in_progress: 2,
+      total: 18
+    },
+    usage_bytes: 1048576,
+    metadata: {
+      provider_id: "chroma",
+      provider_vector_db_id: "chroma_db_123"
+    }
+  },
+  {
+    id: "vs_0987654321", 
+    name: "Research Papers",
+    created_at: Math.floor(Date.now() / 1000) - 172800,
+    file_counts: {
+      completed: 8,
+      cancelled: 1,
+      failed: 0,
+      in_progress: 0,
+      total: 9
+    },
+    usage_bytes: 2097152,
+    metadata: {
+      provider_id: "qdrant",
+      provider_vector_db_id: "qdrant_collection_456"
+    }
+  }
+];
 
 export default function VectorStoresPage() {
   const router = useRouter();
+  const { isConnected } = useBackendStatus();
+  
   const {
     data: stores,
     status,
@@ -48,7 +90,11 @@ export default function VectorStoresPage() {
   }, [status, hasMore, loadMore]);
 
   const renderContent = () => {
-    if (status === "loading") {
+    // Use mock data when backend is not connected
+    const displayStores = isConnected ? stores : mockVectorStores;
+    const displayStatus = isConnected ? status : "success";
+
+    if (displayStatus === "loading") {
       return (
         <div className="space-y-2">
           <Skeleton className="h-8 w-full" />
@@ -58,11 +104,11 @@ export default function VectorStoresPage() {
       );
     }
 
-    if (status === "error") {
+    if (displayStatus === "error" && isConnected) {
       return <div className="text-destructive">Error: {error?.message}</div>;
     }
 
-    if (!stores || stores.length === 0) {
+    if (!displayStores || displayStores.length === 0) {
       return <p>No vector stores found.</p>;
     }
 
@@ -85,7 +131,7 @@ export default function VectorStoresPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {stores.map(store => {
+            {displayStores.map(store => {
               const fileCounts = store.file_counts;
               const metadata = store.metadata || {};
               const providerId = metadata.provider_id ?? "";
@@ -132,6 +178,7 @@ export default function VectorStoresPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Vector Stores</h1>
+      <BackendStatus />
       {renderContent()}
     </div>
   );
