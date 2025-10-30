@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import Script from "next/script";
+
+const DoclingTable = 'docling-table' as any;
+const DoclingImg = 'docling-img' as any;
+const DoclingOverlay = 'docling-overlay' as any;
+const DoclingTooltip = 'docling-tooltip' as any;
 
 interface FileDetails {
   id: string;
@@ -70,6 +76,17 @@ export default function EditFilePage() {
 
   const canSave = parsedMetadata !== null && !isSaving;
 
+  const isProcessed = useMemo(() => {
+    const status = (file as any)?.status ?? (file as any)?.state ?? (file as any)?.processing_status ?? (file as any)?.processingStatus;
+    if (status && typeof status === 'string') return status.toLowerCase() === 'processed';
+    try {
+      const md = (file as any)?.metadata as any;
+      const candidate = md?.status ?? md?.state ?? md?.processing_status ?? md?.processingStatus;
+      if (candidate && typeof candidate === 'string') return candidate.toLowerCase() === 'processed';
+    } catch {}
+    return false;
+  }, [file]);
+
   const handleSave = async () => {
     if (!id || !canSave) return;
     setIsSaving(true);
@@ -98,6 +115,11 @@ export default function EditFilePage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      <Script
+        src="https://unpkg.com/@docling/docling-components"
+        strategy="afterInteractive"
+        type="module"
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Edit File</h1>
         <Button variant="outline" asChild>
@@ -149,6 +171,18 @@ export default function EditFilePage() {
           ) : (
             <div className="text-sm text-muted-foreground">File not found.</div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Document Preview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Using a dummy Docling JSON placed in public/ */}
+          <DoclingImg src="/file.json">
+          <DoclingTooltip></DoclingTooltip>
+          </DoclingImg>
         </CardContent>
       </Card>
     </div>
