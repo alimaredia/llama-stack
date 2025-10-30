@@ -37,7 +37,17 @@ async function proxyRequest(request: NextRequest, method: string) {
 
     // Add body for methods that support it
     if (["POST", "PUT", "PATCH"].includes(method) && request.body) {
-      requestOptions.body = await request.text();
+      // Check if this is a multipart/form-data request (file upload)
+      const contentType = request.headers.get("content-type");
+      if (contentType?.includes("multipart/form-data")) {
+        // For file uploads, use FormData directly
+        requestOptions.body = await request.formData();
+        // Remove content-type header to let fetch set it with the correct boundary
+        headers.delete("content-type");
+      } else {
+        // For other requests, use text
+        requestOptions.body = await request.text();
+      }
     }
 
     // Make the request to FastAPI backend
@@ -49,6 +59,7 @@ async function proxyRequest(request: NextRequest, method: string) {
     console.log(
       `Response from FastAPI: ${response.status} ${response.statusText}`
     );
+    console.log(`Response body preview: ${responseText.substring(0, 200)}...`);
 
     // Create response with same status and headers
     const proxyResponse = new NextResponse(responseText, {
