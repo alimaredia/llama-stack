@@ -156,6 +156,9 @@ providers:
   - provider_id: pypdf
     provider_type: inline::pypdf
     config: {}
+  - provider_id: docling
+    provider_type: inline::docling
+    config: {}
   safety:
   - provider_id: llama-guard
     provider_type: inline::llama-guard

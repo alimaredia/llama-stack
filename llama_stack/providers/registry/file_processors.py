@@ -23,4 +23,13 @@ def available_providers() -> list[ProviderSpec]:
             api_dependencies=[Api.files],
             description="PyPDF-based file processor that converts PDF files to markdown format.",
         ),
+        InlineProviderSpec(
+            api=Api.file_processors,
+            provider_type="inline::docling",
+            pip_packages=["docling"],
+            module="llama_stack.providers.inline.file_processors.docling",
+            config_class="llama_stack.providers.inline.file_processors.docling.DoclingFileProcessorConfig",
+            api_dependencies=[Api.files],
+            description="Docling-based file processor that converts documents (PDF, DOCX, PPTX, HTML, images, etc.) to markdown format.",
+        ),
     ]
