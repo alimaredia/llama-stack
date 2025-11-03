@@ -501,15 +501,19 @@ export default function FilesPage() {
     try {
       setIsAddingToVectorStore(true);
       const fileIds = Array.from(selectedFiles);
+
+      // Add files to vector store (docling processing happens automatically on the backend)
       await Promise.all(
         fileIds.map(fileId => client.vectorStores.files.create(selectedVectorStore, { file_id: fileId } as any))
       );
+
       // Optimistically update local UI
-      setFiles(files.map(file => 
-        selectedFiles.has(file.id) 
+      setFiles(files.map(file =>
+        selectedFiles.has(file.id)
           ? { ...file, vectorStoreId: selectedVectorStore, status: "processing" as const }
           : file
       ));
+
       // Optimistically increment counts
       setFileVSCounts(prev => {
         const next = { ...prev };
@@ -518,10 +522,11 @@ export default function FilesPage() {
         }
         return next;
       });
+
       setSelectedFiles(new Set());
       setSelectedVectorStore("");
       setIsVectorStoreModalOpen(false);
-      alert(`Added ${fileIds.length} file(s) to vector store`);
+      alert(`Added ${fileIds.length} file(s) to vector store. Files will be processed with docling.`);
     } catch (e) {
       alert(`Failed to add to vector store: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {

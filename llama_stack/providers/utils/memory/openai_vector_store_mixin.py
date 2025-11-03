@@ -16,9 +16,11 @@ from fastapi import Body
 from pydantic import TypeAdapter
 
 from llama_stack.apis.common.errors import VectorStoreNotFoundError
+from llama_stack.apis.file_processors import FileProcessors
 from llama_stack.apis.files import Files, OpenAIFileObject
 from llama_stack.apis.vector_io import (
     Chunk,
+    ChunkMetadata,
     OpenAICreateVectorStoreFileBatchRequestWithExtraBody,
     OpenAICreateVectorStoreRequestWithExtraBody,
     QueryChunksResponse,
@@ -51,6 +53,7 @@ from llama_stack.providers.utils.memory.vector_store import (
     content_from_data_and_mime_type,
     make_overlapped_chunks,
 )
+from llama_stack.providers.utils.vector_io.vector_utils import generate_chunk_id
 
 EMBEDDING_DIMENSION = 768
 
@@ -82,11 +85,13 @@ class OpenAIVectorStoreMixin(ABC):
     def __init__(
         self,
         files_api: Files | None = None,
+        file_processors_api: FileProcessors | None = None,
         kvstore: KVStore | None = None,
     ):
         self.openai_vector_stores: dict[str, dict[str, Any]] = {}
         self.openai_file_batches: dict[str, dict[str, Any]] = {}
         self.files_api = files_api
+        self.file_processors_api = file_processors_api
         self.kvstore = kvstore
         self._last_file_batch_cleanup_time = 0
         self._file_batch_tasks: dict[str, asyncio.Task[None]] = {}
@@ -778,23 +783,87 @@ class OpenAIVectorStoreMixin(ABC):
             max_chunk_size_tokens = 800
             chunk_overlap_tokens = 400
 
+        # Initialize variables before try block
+        chunks: list[Chunk] = []
+        file_response: OpenAIFileObject | None = None
+
         try:
             file_response = await self.files_api.openai_retrieve_file(file_id)
-            mime_type, _ = mimetypes.guess_type(file_response.filename)
-            content_response = await self.files_api.openai_retrieve_file_content(file_id)
 
-            content = content_from_data_and_mime_type(content_response.body, mime_type)
+            # Try to use FileProcessor API (docling) if available for better document conversion
+            content: InterleavedContent
+            use_provided_chunks = False
+
+            if self.file_processors_api:
+                try:
+                    logger.info(f"Using FileProcessor API (docling) to process file {file_id}")
+                    processed_response = await self.file_processors_api.process_file(file_id)
+                    # FileProcessor returns markdown content as a string
+                    content = processed_response.content
+                    logger.info(f"Successfully processed file {file_id} with docling, content length: {len(content)}")
+
+                    # Check if docling provided pre-chunked content
+                    if processed_response.chunks and len(processed_response.chunks) > 0:
+                        logger.info(
+                            f"Using {len(processed_response.chunks)} hybrid chunks from docling "
+                            f"for file {file_id} (bypassing token-based chunking)"
+                        )
+                        use_provided_chunks = True
+                        docling_chunks = processed_response.chunks
+                except Exception as e:
+                    logger.warning(f"FileProcessor API failed for file {file_id}, falling back to basic extraction: {e}")
+                    # Fall back to basic extraction if FileProcessor fails
+                    mime_type, _ = mimetypes.guess_type(file_response.filename)
+                    content_response = await self.files_api.openai_retrieve_file_content(file_id)
+                    content = content_from_data_and_mime_type(content_response.body, mime_type)
+            else:
+                # Fall back to basic extraction if FileProcessor API is not available
+                logger.debug(f"FileProcessor API not available, using basic extraction for file {file_id}")
+                mime_type, _ = mimetypes.guess_type(file_response.filename)
+                content_response = await self.files_api.openai_retrieve_file_content(file_id)
+                content = content_from_data_and_mime_type(content_response.body, mime_type)
 
             chunk_attributes = attributes.copy()
             chunk_attributes["filename"] = file_response.filename
 
-            chunks = make_overlapped_chunks(
-                file_id,
-                content,
-                max_chunk_size_tokens,
-                chunk_overlap_tokens,
-                chunk_attributes,
-            )
+            # Use docling hybrid chunks if provided, otherwise use token-based chunking
+            if use_provided_chunks:
+                # Convert docling chunks to Chunk objects
+                chunks = []
+                for i, chunk_text in enumerate(docling_chunks):
+                    chunk_id = generate_chunk_id(chunk_text, content, f"docling_{i}")
+                    chunk_metadata_attrs = chunk_attributes.copy()
+                    chunk_metadata_attrs["chunk_id"] = chunk_id
+                    chunk_metadata_attrs["document_id"] = file_id
+                    chunk_metadata_attrs["chunk_type"] = "docling_hybrid"
+
+                    backend_chunk_metadata = ChunkMetadata(
+                        chunk_id=chunk_id,
+                        document_id=file_id,
+                        source=chunk_attributes.get("source", None),
+                        created_timestamp=chunk_attributes.get("created_timestamp", int(time.time())),
+                        updated_timestamp=int(time.time()),
+                        chunk_window=f"docling_{i}",
+                        chunk_tokenizer="docling_hybrid",
+                        chunk_embedding_model=None,
+                    )
+
+                    chunks.append(
+                        Chunk(
+                            content=chunk_text,
+                            metadata=chunk_metadata_attrs,
+                            chunk_metadata=backend_chunk_metadata,
+                        )
+                    )
+            else:
+                # Use traditional token-based overlapping chunks
+                chunks = make_overlapped_chunks(
+                    file_id,
+                    content,
+                    max_chunk_size_tokens,
+                    chunk_overlap_tokens,
+                    chunk_attributes,
+                )
             if not chunks:
                 vector_store_file_object.status = "failed"
                 vector_store_file_object.last_error = VectorStoreFileLastError(
@@ -820,9 +889,11 @@ class OpenAIVectorStoreMixin(ABC):
         file_info["filename"] = file_response.filename if file_response else ""
 
         # Save vector store file to persistent storage (provider-specific)
-        dict_chunks = [c.model_dump() for c in chunks]
-        # This should be updated to include chunk_id
+        # Only save chunks if they were successfully created
+        dict_chunks = [c.model_dump() for c in chunks] if chunks else []
+        logger.info(f"Saving {len(dict_chunks)} chunks for file {file_id} in vector store {vector_store_id}")
         await self._save_openai_vector_store_file(vector_store_id, file_id, file_info, dict_chunks)
+        logger.info(f"Successfully saved {len(dict_chunks)} chunks for file {file_id}")
 
         # Update file_ids and file_counts in vector store metadata
         store_info = self.openai_vector_stores[vector_store_id].copy()
@@ -921,12 +992,15 @@ class OpenAIVectorStoreMixin(ABC):
         if vector_store_id not in self.openai_vector_stores:
             raise VectorStoreNotFoundError(vector_store_id)
 
+        logger.info(f"Retrieving contents for file {file_id} in vector store {vector_store_id}")
         file_info = await self._load_openai_vector_store_file(vector_store_id, file_id)
         dict_chunks = await self._load_openai_vector_store_file_contents(vector_store_id, file_id)
+        logger.info(f"Loaded {len(dict_chunks)} chunks from storage for file {file_id}")
         chunks = [Chunk.model_validate(c) for c in dict_chunks]
         content = []
         for chunk in chunks:
             content.extend(self._chunk_to_vector_store_content(chunk))
+        logger.info(f"Returning {len(content)} content items for file {file_id}")
         return VectorStoreFileContentsResponse(
             file_id=file_id,
             filename=file_info.get("filename", ""),

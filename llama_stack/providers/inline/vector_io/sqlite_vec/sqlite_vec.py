@@ -15,6 +15,7 @@ import sqlite_vec
 from numpy.typing import NDArray
 
 from llama_stack.apis.common.errors import VectorStoreNotFoundError
+from llama_stack.apis.file_processors import FileProcessors
 from llama_stack.apis.files import Files
 from llama_stack.apis.inference import Inference
 from llama_stack.apis.vector_io import Chunk, QueryChunksResponse, VectorIO
@@ -381,8 +382,10 @@ class SQLiteVecVectorIOAdapter(OpenAIVectorStoreMixin, VectorIO, VectorStoresPro
     and creates a cache of VectorStoreWithIndex instances (each wrapping a SQLiteVecIndex).
     """
 
-    def __init__(self, config, inference_api: Inference, files_api: Files | None) -> None:
-        super().__init__(files_api=files_api, kvstore=None)
+    def __init__(
+        self, config, inference_api: Inference, files_api: Files | None, file_processors_api: FileProcessors | None = None
+    ) -> None:
+        super().__init__(files_api=files_api, file_processors_api=file_processors_api, kvstore=None)
         self.config = config
         self.inference_api = inference_api
         self.cache: dict[str, VectorStoreWithIndex] = {}

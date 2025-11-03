@@ -54,6 +54,7 @@ async def get_auto_router_impl(
 ) -> Any:
     from .datasets import DatasetIORouter
     from .eval_scoring import EvalRouter, ScoringRouter
+    from .file_processors import FileProcessorsRouter
     from .inference import InferenceRouter
     from .safety import SafetyRouter
     from .tool_runtime import ToolRuntimeRouter
@@ -67,6 +68,7 @@ async def get_auto_router_impl(
         "scoring": ScoringRouter,
         "eval": EvalRouter,
         "tool_runtime": ToolRuntimeRouter,
+        "file_processors": FileProcessorsRouter,
     }
     if api.value not in api_to_routers:
         raise ValueError(f"API {api.value} not found in router map")

@@ -153,12 +153,12 @@ providers:
         table_name: files_metadata
         backend: sql_default
   file_processors:
-  - provider_id: pypdf
-    provider_type: inline::pypdf
-    config: {}
   - provider_id: docling
     provider_type: inline::docling
-    config: {}
+    config:
+      enable_hybrid_chunking: true
+      tokenizer: Llama3Tokenizer
+      max_tokens: 800
   safety:
   - provider_id: llama-guard
     provider_type: inline::llama-guard

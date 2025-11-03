@@ -79,6 +79,7 @@ export interface PropertyItemProps {
   value: React.ReactNode;
   className?: string;
   hasBorder?: boolean;
+  suppressHydrationWarning?: boolean;
 }
 
 export function PropertyItem({
@@ -86,6 +87,7 @@ export function PropertyItem({
   value,
   className = "",
   hasBorder = false,
+  suppressHydrationWarning = false,
 }: PropertyItemProps) {
   return (
     <li
@@ -93,7 +95,10 @@ export function PropertyItem({
     >
       <strong>{label}:</strong>{" "}
       {typeof value === "string" || typeof value === "number" ? (
-        <span className="text-gray-900 dark:text-gray-100 font-medium">
+        <span
+          className="text-gray-900 dark:text-gray-100 font-medium"
+          suppressHydrationWarning={suppressHydrationWarning}
+        >
           {value}
         </span>
       ) : (

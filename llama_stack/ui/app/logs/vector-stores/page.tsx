@@ -155,7 +155,7 @@ export default function VectorStoresPage() {
                     </Button>
                   </TableCell>
                   <TableCell>{store.name}</TableCell>
-                  <TableCell>
+                  <TableCell suppressHydrationWarning>
                     {new Date(store.created_at * 1000).toLocaleString()}
                   </TableCell>
                   <TableCell>{fileCounts.completed}</TableCell>

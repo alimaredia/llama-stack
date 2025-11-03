@@ -392,6 +392,7 @@ export default function ContentDetailPage() {
       <PropertyItem
         label="Created"
         value={new Date(content.created_timestamp * 1000).toLocaleString()}
+        suppressHydrationWarning
       />
       <PropertyItem
         label="Content Length"

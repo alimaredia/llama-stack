@@ -32,11 +32,13 @@ class ProcessFileResponse(BaseModel):
 
     :param content: The file content converted to markdown
     :param file_id: The ID of the processed file
+    :param chunks: Optional pre-chunked content from the processor (e.g., docling hybrid chunks)
     :param object: The object type, which is always "file_processor.result"
     """
 
     content: str
     file_id: str
+    chunks: list[str] | None = None
     object: Literal["file_processor.result"] = "file_processor.result"
 
 
@@ -47,11 +49,13 @@ class ProcessFileUploadResponse(BaseModel):
 
     :param content: The file content converted to markdown
     :param filename: The name of the processed file
+    :param chunks: Optional pre-chunked content from the processor (e.g., docling hybrid chunks)
     :param object: The object type, which is always "file_processor.result"
     """
 
     content: str
     filename: str
+    chunks: list[str] | None = None
     object: Literal["file_processor.result"] = "file_processor.result"
 
 

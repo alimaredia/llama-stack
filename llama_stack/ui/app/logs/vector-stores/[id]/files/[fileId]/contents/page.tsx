@@ -258,7 +258,7 @@ export default function ContentsListPage() {
                         ? content.metadata.chunk_window
                         : `${content.metadata.content_length || 0} chars`}
                     </TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className="text-xs" suppressHydrationWarning>
                       {new Date(
                         content.created_timestamp * 1000
                       ).toLocaleString()}
@@ -318,6 +318,7 @@ export default function ContentsListPage() {
           <PropertyItem
             label="Created"
             value={new Date(file.created_at * 1000).toLocaleString()}
+            suppressHydrationWarning
           />
           <PropertyItem label="Usage Bytes" value={file.usage_bytes} />
           <PropertyItem

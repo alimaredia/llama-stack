@@ -176,7 +176,7 @@ export default function FileDetailPage() {
                     <span className="font-medium text-gray-600 dark:text-gray-400">
                       Created:
                     </span>
-                    <span className="ml-2">
+                    <span className="ml-2" suppressHydrationWarning>
                       {new Date(file.created_at * 1000).toLocaleString()}
                     </span>
                   </div>
@@ -273,6 +273,7 @@ export default function FileDetailPage() {
           <PropertyItem
             label="Created"
             value={new Date(file.created_at * 1000).toLocaleString()}
+            suppressHydrationWarning
           />
           <PropertyItem label="Usage Bytes" value={file.usage_bytes} />
           <PropertyItem

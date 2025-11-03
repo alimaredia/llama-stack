@@ -26,10 +26,10 @@ def available_providers() -> list[ProviderSpec]:
         InlineProviderSpec(
             api=Api.file_processors,
             provider_type="inline::docling",
-            pip_packages=["docling"],
+            pip_packages=["docling", "transformers"],
             module="llama_stack.providers.inline.file_processors.docling",
             config_class="llama_stack.providers.inline.file_processors.docling.DoclingFileProcessorConfig",
             api_dependencies=[Api.files],
-            description="Docling-based file processor that converts documents (PDF, DOCX, PPTX, HTML, images, etc.) to markdown format.",
+            description="Docling-based file processor with hybrid chunking that converts documents (PDF, DOCX, PPTX, HTML, images, etc.) to markdown format with semantic chunks.",
         ),
     ]
